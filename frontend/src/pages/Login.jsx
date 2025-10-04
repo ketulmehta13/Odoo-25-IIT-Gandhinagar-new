@@ -34,7 +34,7 @@ export const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-3xl font-bold text-center">ExpenseFlow</CardTitle>
+          <CardTitle className="text-3xl font-bold text-center">Login</CardTitle>
           <CardDescription className="text-center">
             Sign in to manage your expenses
           </CardDescription>
