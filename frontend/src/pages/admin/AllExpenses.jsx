@@ -104,7 +104,7 @@ export const AllExpenses = () => {
                     <SelectItem value="pending_approval">Pending Approval</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
+                    {/* <SelectItem value="submitted">Submitted</SelectItem> */}
                   </SelectContent>
                 </Select>
               </div>

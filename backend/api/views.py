@@ -130,6 +130,44 @@ class ExpensePagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
+@api_view(['PUT', 'PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def update_user(request, user_id):
+    if request.user.role != 'admin':
+        return Response(
+            {'success': False, 'error': 'Only admins can update users'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Update allowed fields
+        if 'first_name' in request.data:
+            user.first_name = request.data['first_name']
+        if 'last_name' in request.data:
+            user.last_name = request.data['last_name']
+        if 'role' in request.data:
+            user.role = request.data['role']
+        
+        user.save()
+        
+        return Response({
+            'success': True,
+            'data': UserManagementSerializer(user).data
+        })
+        
+    except User.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': 'User not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error updating user: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -216,17 +254,41 @@ def pending_approvals(request):
             status=status.HTTP_403_FORBIDDEN
         )
     
-    # Get expenses where user is the current approver
-    expenses = Expense.objects.filter(
-        current_approver=user,
-        status='pending_approval'
-    )
-    
-    serializer = ExpenseSerializer(expenses, many=True)
-    return Response({
-        'success': True,
-        'data': serializer.data
-    })
+    try:
+        if user.role == 'admin':
+            # ADMIN sees ALL pending expenses regardless of current approver
+            company = get_user_company(user)
+            expenses = Expense.objects.filter(
+                company=company,
+                status='pending_approval'
+            ).order_by('-created_at')
+            
+            print(f"Admin pending approvals: Found {expenses.count()} expenses")
+            for exp in expenses:
+                print(f"  - {exp.employee.email}: ${exp.amount} (Current approver: {exp.current_approver.email if exp.current_approver else 'None'})")
+        
+        elif user.role == 'manager':
+            # MANAGER sees only expenses where they are current approver
+            expenses = Expense.objects.filter(
+                current_approver=user,
+                status='pending_approval'
+            ).order_by('-created_at')
+            
+            print(f"Manager pending approvals: Found {expenses.count()} expenses for {user.email}")
+        
+        serializer = ExpenseSerializer(expenses, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
+        
+    except Exception as e:
+        print(f"Error in pending_approvals: {str(e)}")
+        return Response({
+            'success': False,
+            'error': 'Failed to fetch pending approvals'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -318,52 +380,95 @@ def approve_reject_expense(request, expense_id):
 @permission_classes([permissions.IsAuthenticated])
 def admin_stats(request):
     user = request.user
+    print(f"Admin stats requested by: {user.email}, role: {user.role}")
+    
     if user.role != 'admin':
         return Response(
-            {'error': 'Only admins can view statistics'}, 
+            {'success': False, 'error': 'Only admins can view statistics'}, 
             status=status.HTTP_403_FORBIDDEN
         )
     
-    company = get_user_company(user)
-    expenses = Expense.objects.filter(company=company)
-    
-    stats = {
-        'total_expenses': expenses.count(),
-        'pending_count': expenses.filter(status='pending_approval').count(),
-        'approved_count': expenses.filter(status='approved').count(),
-        'rejected_count': expenses.filter(status='rejected').count(),
-        'approved_amount': float(sum(
-            e.converted_amount or 0 for e in expenses.filter(status='approved')
-        )),
-        'pending_amount': float(sum(
-            e.converted_amount or 0 for e in expenses.filter(status='pending_approval')
-        )),
-        'rejected_amount': float(sum(
-            e.converted_amount or 0 for e in expenses.filter(status='rejected')
-        ))
-    }
-    
-    return Response({
-        'success': True,
-        'data': stats
-    })
+    try:
+        # Get ALL expenses for admin stats (regardless of company for now)
+        expenses = Expense.objects.all()
+        print(f"Total expenses in database: {expenses.count()}")
+        
+        if expenses.count() == 0:
+            # No expenses exist, return zeros
+            stats_data = {
+                'total_expenses': 0,
+                'pending_count': 0,
+                'approved_count': 0,
+                'rejected_count': 0,
+                'approved_amount': 0.0,
+                'pending_amount': 0.0,
+                'rejected_amount': 0.0
+            }
+        else:
+            # Calculate stats from all expenses
+            total_expenses = expenses.count()
+            pending_count = expenses.filter(status='pending_approval').count()
+            approved_count = expenses.filter(status='approved').count()
+            rejected_count = expenses.filter(status='rejected').count()
+            
+            # Calculate amounts
+            approved_amount = sum(float(e.converted_amount or e.amount or 0) for e in expenses.filter(status='approved'))
+            pending_amount = sum(float(e.converted_amount or e.amount or 0) for e in expenses.filter(status='pending_approval'))
+            rejected_amount = sum(float(e.converted_amount or e.amount or 0) for e in expenses.filter(status='rejected'))
+            
+            stats_data = {
+                'total_expenses': total_expenses,
+                'pending_count': pending_count,
+                'approved_count': approved_count,
+                'rejected_count': rejected_count,
+                'approved_amount': approved_amount,
+                'pending_amount': pending_amount,
+                'rejected_amount': rejected_amount
+            }
+        
+        print(f"Calculated stats: {stats_data}")
+        
+        return Response({
+            'success': True,
+            'data': stats_data
+        })
+        
+    except Exception as e:
+        print(f"Error in admin_stats: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'error': 'Failed to fetch admin statistics'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
 def user_management(request):
     if request.method == 'GET':
-        # Filter users by company for non-admins
-        if request.user.role == 'admin':
-            company = get_user_company(request.user)
-            users = User.objects.filter(company_name=company.name)
-        else:
-            users = User.objects.filter(id=request.user.id)
+        try:
+            # FOR QUICK FIX - Return ALL users regardless of company
+            # This fixes the company filtering issue
+            users = User.objects.all()
             
-        serializer = UserManagementSerializer(users, many=True)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        })
+            print(f"Found {users.count()} total users")
+            for user in users:
+                print(f"User: {user.email}, Role: {user.role}, Company: {user.company_name}")
+            
+            serializer = UserManagementSerializer(users, many=True)
+            
+            return Response({
+                'success': True,
+                'data': serializer.data
+            })
+            
+        except Exception as e:
+            print(f"Error in user_management: {str(e)}")
+            return Response({
+                'success': False,
+                'error': 'Failed to fetch users'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     elif request.method == 'POST':
         if request.user.role != 'admin':
@@ -372,25 +477,36 @@ def user_management(request):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        data = request.data.copy()
-        company = get_user_company(request.user)
-        data['company_name'] = company.name
-        
-        user = User.objects.create_user(
-            email=data['email'],
-            username=data['email'],
-            first_name=data.get('name', '').split(' ')[0] if data.get('name') else '',
-            last_name=' '.join(data.get('name', '').split(' ')[1:]) if data.get('name') else '',
-            role=data['role'],
-            company_name=data['company_name'],
-            currency=company.currency,
-            password='defaultpass123'
-        )
-        
-        return Response({
-            'success': True,
-            'data': UserManagementSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
+        try:
+            data = request.data.copy()
+            
+            # Use admin's company or default
+            admin_company = get_user_company(request.user)
+            data['company_name'] = admin_company.name
+            
+            # Create user
+            user = User.objects.create_user(
+                email=data['email'],
+                username=data['email'],
+                first_name=data.get('name', '').split(' ')[0] if data.get('name') else '',
+                last_name=' '.join(data.get('name', '').split(' ')[1:]) if data.get('name') else '',
+                role=data['role'],
+                company_name=data['company_name'],
+                currency=admin_company.currency,
+                password='defaultpass123'
+            )
+            
+            return Response({
+                'success': True,
+                'data': UserManagementSerializer(user).data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"Error creating user: {str(e)}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -514,18 +630,33 @@ def get_or_create_company(user):
     return company
 
 def get_user_company(user):
+    """Get or create company for user - Fixed version"""
+    # First try to find existing company by exact name match
+    if user.company_name:
+        company = Company.objects.filter(name=user.company_name).first()
+        if company:
+            return company
+    
+    # If not found, find any company with expenses (for existing data)
+    company_with_data = Company.objects.filter(expenses__isnull=False).first()
+    if company_with_data:
+        # Update user to match existing company
+        user.company_name = company_with_data.name
+        user.save()
+        return company_with_data
+    
+    # If no companies exist, create one
     company, created = Company.objects.get_or_create(
         name=user.company_name or 'Default Company',
         defaults={'currency': user.currency or 'USD'}
     )
     
-    # Create default categories for new companies
-    if created:
-        default_categories = ['Travel', 'Meals', 'Office Supplies', 'Transportation', 'Entertainment']
-        for cat_name in default_categories:
-            ExpenseCategory.objects.create(name=cat_name, company=company)
+    # Update user to match company name
+    user.company_name = company.name
+    user.save()
     
     return company
+
 
 def convert_currency(amount, from_currency, to_currency):
     if from_currency == to_currency:

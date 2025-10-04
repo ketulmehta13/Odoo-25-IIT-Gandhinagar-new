@@ -18,8 +18,10 @@ urlpatterns = [
     
     # Admin endpoints
     path('admin/stats/', views.admin_stats, name='admin-stats'),
+     # User management endpoints
     path('admin/users/', views.user_management, name='user-management'),
-    path('admin/users/<int:user_id>/', views.delete_user, name='delete-user'),
+    path('admin/users/<int:user_id>/', views.update_user, name='update-user'),  # ADD THIS LINE
+    path('admin/users/<int:user_id>/delete/', views.delete_user, name='delete-user'),
     
     # Manager-Employee Assignment
     path('assign-manager/', views.assign_manager_employee, name='assign-manager'),
