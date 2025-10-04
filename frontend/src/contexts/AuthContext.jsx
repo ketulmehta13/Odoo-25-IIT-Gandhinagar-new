@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/authService';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -15,81 +16,81 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    console.log('AuthContext: Checking for stored user...');
+    // Check for stored user on app load
+    const storedUser = authService.getStoredUser();
+    if (storedUser && authService.isAuthenticated()) {
+      console.log('AuthContext: Found stored user:', storedUser);
+      setUser(storedUser);
+    } else {
+      console.log('AuthContext: No valid stored user found');
     }
     setLoading(false);
+    console.log('AuthContext: Initial loading complete');
   }, []);
 
-  const login = async (email, password) => {
-    // Mock authentication - replace with Django API call
-    // For demo: admin@company.com, manager@company.com, employee@company.com
-    // Password: any string
-    const mockUsers = {
-      'admin@company.com': {
-        id: 1,
-        email: 'admin@company.com',
-        name: 'John Admin',
-        role: 'admin',
-        companyId: 1,
-        companyCurrency: 'USD'
-      },
-      'manager@company.com': {
-        id: 2,
-        email: 'manager@company.com',
-        name: 'Sarah Manager',
-        role: 'manager',
-        companyId: 1,
-        companyCurrency: 'USD'
-      },
-      'employee@company.com': {
-        id: 3,
-        email: 'employee@company.com',
-        name: 'Mike Employee',
-        role: 'employee',
-        companyId: 1,
-        companyCurrency: 'USD',
-        managerId: 2
-      }
-    };
-
-    const userData = mockUsers[email];
-    if (userData) {
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', 'mock-jwt-token');
-      return { success: true };
+  const login = async (email, password, role) => {
+    console.log('AuthContext: Login function called');
+    console.log('AuthContext: Email:', email);
+    console.log('AuthContext: Role:', role);
+    
+    const result = await authService.login(email, password, role);
+    
+    console.log('AuthContext: Login result received:', result);
+    
+    if (result.success) {
+      console.log('AuthContext: Setting user in state:', result.user);
+      setUser(result.user);
+      console.log('AuthContext: User set successfully');
+    } else {
+      console.log('AuthContext: Login failed, not setting user');
     }
-    return { success: false, error: 'Invalid credentials' };
+    
+    return result;
   };
 
-  const signup = async (data) => {
-    // Mock signup - replace with Django API call
-    const newUser = {
-      id: Date.now(),
-      email: data.email,
-      name: data.name,
-      role: 'admin', // First user becomes admin
-      companyId: Date.now(),
-      companyCurrency: data.currency || 'USD'
-    };
+  const signup = async (formData) => {
+    console.log('AuthContext: Signup function called');
+    console.log('AuthContext: Email:', formData.email);
+    console.log('AuthContext: Role:', formData.role);
     
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    localStorage.setItem('token', 'mock-jwt-token');
+    const result = await authService.signup(formData);
+    
+    console.log('AuthContext: Signup result received:', result);
+    
+    if (result.success) {
+      console.log('AuthContext: Setting user in state:', result.user);
+      setUser(result.user);
+      console.log('AuthContext: User set successfully');
+    } else {
+      console.log('AuthContext: Signup failed, not setting user');
+    }
+    
+    return result;
+  };
+
+  const logout = async () => {
+    console.log('AuthContext: Logout function called');
+    await authService.logout();
+    setUser(null);
+    console.log('AuthContext: User cleared from state');
+    console.log('AuthContext: Logout complete');
     return { success: true };
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+  const value = {
+    user,
+    loading,
+    login,
+    signup,
+    logout,
+    isAuthenticated: authService.isAuthenticated,
   };
 
+  console.log('AuthContext: Current state - User:', !!user, 'Loading:', loading);
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

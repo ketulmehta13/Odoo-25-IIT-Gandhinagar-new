@@ -6,11 +6,8 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -20,7 +17,10 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    // Redirect to appropriate dashboard based on user role
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'manager') return <Navigate to="/manager" replace />;
+    if (user.role === 'employee') return <Navigate to="/employee" replace />;
   }
 
   return children;

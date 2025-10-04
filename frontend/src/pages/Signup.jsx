@@ -15,7 +15,8 @@ export const Signup = () => {
     email: '',
     password: '',
     companyName: '',
-    currency: 'USD'
+    currency: 'USD',
+    role: ''
   });
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -29,9 +30,34 @@ export const Signup = () => {
     
     if (result.success) {
       toast.success('Account created successfully!');
-      navigate('/');
+      
+      // Navigate based on role using existing routes from App.jsx
+      if (formData.role === 'admin') {
+        navigate('/admin');
+      } else if (formData.role === 'manager') {
+        navigate('/manager');
+      } else if (formData.role === 'employee') {
+        navigate('/employee');
+      } else {
+        // Fallback - let RoleBasedRedirect handle it
+        navigate('/');
+      }
     } else {
-      toast.error(result.error || 'Signup failed');
+      // Handle specific error types
+      if (typeof result.error === 'object') {
+        // Handle validation errors from Django
+        Object.keys(result.error).forEach(field => {
+          if (Array.isArray(result.error[field])) {
+            result.error[field].forEach(message => {
+              toast.error(`${field}: ${message}`);
+            });
+          } else {
+            toast.error(`${field}: ${result.error[field]}`);
+          }
+        });
+      } else {
+        toast.error(result.error || 'Signup failed');
+      }
     }
     
     setLoading(false);
@@ -48,6 +74,24 @@ export const Signup = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -113,7 +157,7 @@ export const Signup = () => {
               </Select>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !formData.role}>
               {loading ? 'Creating Account...' : 'Create Account'}
             </Button>
 

@@ -64,5 +64,17 @@ export const currencyService = {
   },
 
   // Common currencies for quick access
-  commonCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR']
+  commonCurrencies: [
+    'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'KRW',
+    'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'PLN', 'CZK', 'HUF', 'RUB', 'BRL',
+    'MXN', 'ZAR', 'TRY', 'NZD', 'THB', 'MYR', 'IDR', 'PHP', 'VND'
+  ],
+  
+  getSymbol: (currency) => {
+    const symbols = {
+      USD: '$', EUR: '€', GBP: '£', JPY: '¥', INR: '₹',
+      CAD: 'C$', AUD: 'A$', CHF: 'CHF', CNY: '¥', KRW: '₩'
+    };
+    return symbols[currency] || currency;
+  }
 };
