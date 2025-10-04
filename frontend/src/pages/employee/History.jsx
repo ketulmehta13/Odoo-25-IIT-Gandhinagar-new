@@ -16,36 +16,62 @@ export const ExpenseHistory = () => {
   }, []);
 
   const loadExpenses = async () => {
-    const result = await expenseApi.getEmployeeExpenses(user.id);
-    if (result.success) {
-      setExpenses(result.data);
+    try {
+      console.log('Loading employee expenses...');
+      // Use getEmployeeExpenses instead of passing user.id
+      const result = await expenseApi.getEmployeeExpenses();
+      
+      console.log('Employee expenses result:', result);
+      
+      if (result.success) {
+        const expenseData = Array.isArray(result.data) ? result.data : [];
+        setExpenses(expenseData);
+      } else {
+        console.error('API Error:', result.error);
+        setExpenses([]);
+      }
+    } catch (error) {
+      console.error('Load expenses error:', error);
+      setExpenses([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const getStatusBadge = (status) => {
     const variants = {
+      pending_approval: 'warning',
       pending: 'warning',
       approved: 'success',
-      rejected: 'destructive'
+      rejected: 'destructive',
+      submitted: 'secondary'
     };
-    return (
-      <Badge variant={variants[status] || 'secondary'}>
-        {status.toUpperCase()}
-      </Badge>
-    );
+    return <Badge variant={variants[status] || 'secondary'}>{status?.toUpperCase()}</Badge>;
+  };
+
+  // Safe date formatting
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No Date';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'Invalid Date';
+    }
   };
 
   if (loading) {
     return (
       <Layout>
-        <div 
-          style={{ 
-            marginLeft: '256px', 
-            padding: '24px', 
-            minHeight: '100vh' 
-          }}
-        >
+        <div style={{ marginLeft: '256px', padding: '24px', minHeight: '100vh' }}>
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="mt-4 text-muted-foreground">Loading expenses...</p>
@@ -57,14 +83,12 @@ export const ExpenseHistory = () => {
 
   return (
     <Layout>
-      <div 
-        style={{ 
-          marginLeft: '256px', 
-          padding: '24px', 
-          minHeight: '100vh',
-          backgroundColor: 'var(--background)' 
-        }}
-      >
+      <div style={{ 
+        marginLeft: '256px', 
+        padding: '24px', 
+        minHeight: '100vh', 
+        backgroundColor: 'var(--background)' 
+      }}>
         <div className="max-w-6xl">
           <h1 className="text-3xl font-bold mb-2">Expense History</h1>
           <p className="text-muted-foreground mb-6">Track your submitted expenses and their status</p>
@@ -91,44 +115,60 @@ export const ExpenseHistory = () => {
                         <div className="flex items-center gap-6 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <DollarSign className="w-4 h-4" />
-                            <span>
-                              {expense.amount} {expense.currency}
-                              {expense.currency !== expense.companyCurrency && (
-                                <span className="ml-2 text-xs">
-                                  (≈ {expense.convertedAmount} {expense.companyCurrency})
-                                </span>
-                              )}
-                            </span>
+                            <span>{expense.amount} {expense.currency}</span>
+                            {expense.currency !== (expense.company_currency || 'USD') && (
+                              <span className="ml-2 text-xs">
+                                ≈ {expense.converted_amount} {expense.company_currency || 'USD'}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            <span>{new Date(expense.date).toLocaleDateString()}</span>
+                            <span>{formatDate(expense.expense_date || expense.date)}</span>
                           </div>
-                          <Badge variant="outline">{expense.category}</Badge>
+                          <Badge variant="outline">
+                            {expense.category_details?.name || expense.category || 'No Category'}
+                          </Badge>
                         </div>
 
-                        {/* Approval Status */}
-                        <div className="mt-4 pt-4 border-t">
-                          <p className="text-sm font-medium mb-2">Approval Status:</p>
-                          <div className="space-y-2">
-                            {expense.approvers.map((approver, idx) => (
-                              <div key={idx} className="flex items-center gap-3 text-sm">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  approver.status === 'approved' ? 'bg-success' :
-                                  approver.status === 'rejected' ? 'bg-destructive' :
-                                  'bg-warning'
-                                }`} />
-                                <span>{approver.name}</span>
-                                <span className="text-muted-foreground">({approver.status})</span>
-                                {approver.comment && (
-                                  <span className="text-xs italic text-muted-foreground">
-                                    - {approver.comment}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                        {/* Approval Status - Fixed the map error */}
+                        {expense.approvals && expense.approvals.length > 0 && (
+                          <div className="mt-4 pt-4 border-t">
+                            <p className="text-sm font-medium mb-2">Approval Status</p>
+                            <div className="space-y-2">
+                              {expense.approvals.map((approval, idx) => (
+                                <div key={idx} className="flex items-center gap-3 text-sm">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    approval.status === 'approved' ? 'bg-green-500' : 
+                                    approval.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500'
+                                  }`} />
+                                  <span>{approval.approver_details?.full_name || 'Unknown Approver'}</span>
+                                  <span className="text-muted-foreground">({approval.status})</span>
+                                  {approval.comments && (
+                                    <span className="text-xs italic text-muted-foreground">
+                                      - "{approval.comments}"
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Show current status if no approvals yet */}
+                        {(!expense.approvals || expense.approvals.length === 0) && (
+                          <div className="mt-4 pt-4 border-t">
+                            <p className="text-sm font-medium mb-2">Status</p>
+                            <div className="flex items-center gap-3 text-sm">
+                              <div className={`w-2 h-2 rounded-full ${
+                                expense.status === 'approved' ? 'bg-green-500' : 
+                                expense.status === 'rejected' ? 'bg-red-500' : 
+                                expense.status === 'submitted' ? 'bg-blue-500' : 'bg-yellow-500'
+                              }`} />
+                              <span>{expense.status === 'pending_approval' ? 'Pending Manager Approval' : expense.status?.replace('_', ' ').toUpperCase()}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

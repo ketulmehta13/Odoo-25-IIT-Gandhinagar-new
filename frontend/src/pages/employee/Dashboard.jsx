@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '../../components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -16,22 +16,44 @@ export const EmployeeDashboard = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     amount: '',
-    currency: user?.companyCurrency || 'USD',
+    currency: user?.currency || 'USD',
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
-    receipt: null
+    expense_date: new Date().toISOString().split('T')[0], // Changed to expense_date
+    receipt_image: null // Changed to receipt_image
   });
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingOCR, setProcessingOCR] = useState(false);
 
-  const categories = ['Travel', 'Meals', 'Accommodation', 'Office Supplies', 'Other'];
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const result = await expenseApi.getCategories();
+      if (result.success) {
+        setCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      // Fallback categories
+      setCategories([
+        { id: 1, name: 'Travel' },
+        { id: 2, name: 'Meals' },
+        { id: 3, name: 'Office Supplies' },
+        { id: 4, name: 'Transportation' },
+        { id: 5, name: 'Entertainment' }
+      ]);
+    }
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setFormData({ ...formData, receipt: file });
+    setFormData({ ...formData, receipt_image: file });
     setProcessingOCR(true);
     toast.info('Processing receipt with OCR...');
 
@@ -40,8 +62,8 @@ export const EmployeeDashboard = () => {
       if (result.success) {
         setFormData(prev => ({
           ...prev,
-          amount: result.data.amount,
-          date: result.data.date,
+          amount: result.data.amount.toString(),
+          expense_date: result.data.date,
           category: result.data.category,
           description: `Purchase from ${result.data.merchant}`
         }));
@@ -59,47 +81,50 @@ export const EmployeeDashboard = () => {
     setLoading(true);
 
     try {
-      // Convert currency if needed
-      let convertedAmount = parseFloat(formData.amount);
-      if (formData.currency !== user.companyCurrency) {
-        const conversion = await currencyService.convertCurrency(
-          parseFloat(formData.amount),
-          formData.currency,
-          user.companyCurrency
-        );
-        convertedAmount = conversion.convertedAmount;
-      }
+      console.log('Submitting expense with data:', formData);
+      console.log('Current user:', user);
 
+      // Prepare expense data to match Django API expectations
       const expenseData = {
-        employeeId: user.id,
-        employeeName: user.name,
         amount: parseFloat(formData.amount),
         currency: formData.currency,
-        convertedAmount,
-        companyCurrency: user.companyCurrency,
-        category: formData.category,
+        category: parseInt(formData.category), // Should be category ID
         description: formData.description,
-        date: formData.date,
-        receiptUrl: '/placeholder.svg',
-        approvers: [
-          { id: user.managerId || 2, name: 'Manager', role: 'manager', status: 'pending' }
-        ]
+        expense_date: formData.expense_date,
       };
+
+      // Add receipt image if present
+      if (formData.receipt_image) {
+        expenseData.receipt_image = formData.receipt_image;
+      }
+
+      console.log('Sending expense data to API:', expenseData);
 
       const result = await expenseApi.submitExpense(expenseData);
       
+      console.log('Submit expense result:', result);
+
       if (result.success) {
         toast.success('Expense submitted successfully!');
+        // Reset form
         setFormData({
           amount: '',
-          currency: user.companyCurrency,
+          currency: user?.currency || 'USD',
           category: '',
           description: '',
-          date: new Date().toISOString().split('T')[0],
-          receipt: null
+          expense_date: new Date().toISOString().split('T')[0],
+          receipt_image: null
         });
+        
+        // Reset file input
+        const fileInput = document.getElementById('receipt');
+        if (fileInput) fileInput.value = '';
+        
+      } else {
+        toast.error(result.error || 'Failed to submit expense');
       }
     } catch (error) {
+      console.error('Submit expense error:', error);
       toast.error('Failed to submit expense');
     } finally {
       setLoading(false);
@@ -108,14 +133,12 @@ export const EmployeeDashboard = () => {
 
   return (
     <Layout>
-      <div 
-        style={{ 
-          marginLeft: '256px', 
-          padding: '24px', 
-          minHeight: '100vh',
-          backgroundColor: 'var(--background)' 
-        }}
-      >
+      <div style={{ 
+        marginLeft: '256px', 
+        padding: '24px', 
+        minHeight: '100vh',
+        backgroundColor: 'var(--background)' 
+      }}>
         <div className="max-w-4xl">
           <h1 className="text-3xl font-bold mb-2">Submit New Expense</h1>
           <p className="text-muted-foreground mb-6">Upload receipts and track reimbursements</p>
@@ -144,8 +167,8 @@ export const EmployeeDashboard = () => {
                       <p className="text-sm text-muted-foreground">
                         {processingOCR ? 'Processing OCR...' : 'Click to upload receipt'}
                       </p>
-                      {formData.receipt && (
-                        <p className="text-sm text-primary mt-2">{formData.receipt.name}</p>
+                      {formData.receipt_image && (
+                        <p className="text-sm text-primary mt-2">{formData.receipt_image.name}</p>
                       )}
                     </label>
                   </div>
@@ -197,8 +220,8 @@ export const EmployeeDashboard = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
+                          <SelectItem key={cat.id} value={cat.id.toString()}>
+                            {cat.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -206,12 +229,12 @@ export const EmployeeDashboard = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="date">Date *</Label>
+                    <Label htmlFor="expense_date">Date *</Label>
                     <Input
-                      id="date"
+                      id="expense_date"
                       type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      value={formData.expense_date}
+                      onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
                       required
                     />
                   </div>

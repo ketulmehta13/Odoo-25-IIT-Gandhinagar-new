@@ -64,6 +64,7 @@ export const expenseApi = {
   // Get all expenses (filtered by user role - admin sees all, manager sees team, employee sees own)
   getAllExpenses: async (filters = {}) => {
     try {
+      console.log('API: Getting all expenses with filters:', filters);
       const params = new URLSearchParams();
       
       // Add filters to query params
@@ -74,13 +75,14 @@ export const expenseApi = {
       });
       
       const response = await api.get(`/expenses/?${params}`);
+      console.log('API: All expenses response:', response.data);
       
       return { 
         success: true, 
         data: response.data.results || response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get all expenses error:', error);
+      console.error('API: Get all expenses error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch expenses'
@@ -91,13 +93,16 @@ export const expenseApi = {
   // Get expenses for current employee (used in employee dashboard)
   getEmployeeExpenses: async () => {
     try {
+      console.log('API: Getting employee expenses...');
       const response = await api.get('/expenses/');
+      console.log('API: Employee expenses response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.results || response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get employee expenses error:', error);
+      console.error('API: Get employee expenses error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch employee expenses'
@@ -108,13 +113,16 @@ export const expenseApi = {
   // Get expenses pending approval for current manager
   getPendingApprovals: async () => {
     try {
+      console.log('API: Getting pending approvals...');
       const response = await api.get('/expenses/pending/');
+      console.log('API: Pending approvals response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get pending approvals error:', error);
+      console.error('API: Get pending approvals error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch pending approvals'
@@ -125,6 +133,7 @@ export const expenseApi = {
   // Submit new expense with file upload support
   submitExpense: async (expenseData) => {
     try {
+      console.log('API: Submitting expense:', expenseData);
       const formData = new FormData();
       
       // Add all expense data to FormData
@@ -144,12 +153,13 @@ export const expenseApi = {
         },
       });
       
+      console.log('API: Submit expense response:', response.data);
       return { 
         success: true, 
         data: response.data 
       };
     } catch (error) {
-      console.error('Submit expense error:', error);
+      console.error('API: Submit expense error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || error.response?.data?.errors || 'Failed to submit expense'
@@ -157,20 +167,44 @@ export const expenseApi = {
     }
   },
 
-  // Approve or reject expense
+  // Approve or reject expense - FIXED METHOD
   updateExpenseStatus: async (expenseId, decision) => {
     try {
-      const response = await api.post(`/expenses/${expenseId}/approve/`, {
-        action: decision.status === 'approved' ? 'approve' : 'reject',
-        comment: decision.comment || ''
-      });
+      console.log('API: Updating expense status:', expenseId, decision);
+      
+      // Handle different input formats
+      let action, comment;
+      
+      if (decision.action) {
+        // New format: { action: 'approve', comment: 'text' }
+        action = decision.action;
+        comment = decision.comment || '';
+      } else if (decision.status) {
+        // Legacy format: { status: 'approved', comment: 'text' }
+        action = decision.status === 'approved' ? 'approve' : 'reject';
+        comment = decision.comment || '';
+      } else {
+        // Direct action string: 'approve' or 'reject'
+        action = decision;
+        comment = '';
+      }
+      
+      const payload = {
+        action: action,
+        comment: comment
+      };
+      
+      console.log('API: Sending payload:', payload);
+      
+      const response = await api.post(`/expenses/${expenseId}/approve/`, payload);
+      console.log('API: Update expense status response:', response.data);
       
       return { 
         success: true, 
         data: response.data 
       };
     } catch (error) {
-      console.error('Update expense status error:', error);
+      console.error('API: Update expense status error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to update expense status'
@@ -181,13 +215,16 @@ export const expenseApi = {
   // Get expense categories
   getCategories: async () => {
     try {
+      console.log('API: Getting categories...');
       const response = await api.get('/expenses/categories/');
+      console.log('API: Categories response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get categories error:', error);
+      console.error('API: Get categories error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch categories'
@@ -195,16 +232,19 @@ export const expenseApi = {
     }
   },
 
-  // Get admin statistics
+  // Get admin statistics - FIXED METHOD
   getAdminStats: async () => {
     try {
+      console.log('API: Getting admin stats...');
       const response = await api.get('/admin/stats/');
+      console.log('API: Admin stats response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get admin stats error:', error);
+      console.error('API: Get admin stats error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch admin statistics'
@@ -214,6 +254,7 @@ export const expenseApi = {
 
   // Mock OCR processing (placeholder for future implementation)
   processReceipt: async (file) => {
+    console.log('API: Processing receipt (mock)...');
     // For now, return mock data since OCR is not implemented in backend
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate processing delay
     
@@ -230,16 +271,19 @@ export const expenseApi = {
 };
 
 export const userApi = {
-  // Get all users (admin only)
+  // Get all users (admin only) - FIXED METHOD
   getAllUsers: async () => {
     try {
+      console.log('API: Getting all users...');
       const response = await api.get('/admin/users/');
+      console.log('API: All users response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Get all users error:', error);
+      console.error('API: Get all users error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch users'
@@ -250,13 +294,16 @@ export const userApi = {
   // Create new user (admin only)
   createUser: async (userData) => {
     try {
+      console.log('API: Creating user:', userData);
       const response = await api.post('/admin/users/', userData);
+      console.log('API: Create user response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Create user error:', error);
+      console.error('API: Create user error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || error.response?.data?.errors || 'Failed to create user'
@@ -267,13 +314,16 @@ export const userApi = {
   // Update user (admin only)
   updateUser: async (userId, updates) => {
     try {
+      console.log('API: Updating user:', userId, updates);
       const response = await api.patch(`/admin/users/${userId}/`, updates);
+      console.log('API: Update user response:', response.data);
+      
       return { 
         success: true, 
         data: response.data.data || response.data 
       };
     } catch (error) {
-      console.error('Update user error:', error);
+      console.error('API: Update user error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to update user'
@@ -284,25 +334,49 @@ export const userApi = {
   // Delete/Deactivate user (admin only)
   deleteUser: async (userId) => {
     try {
+      console.log('API: Deleting user:', userId);
       const response = await api.delete(`/admin/users/${userId}/`);
+      console.log('API: Delete user response:', response.data);
+      
       return { 
         success: true, 
         data: response.data 
       };
     } catch (error) {
-      console.error('Delete user error:', error);
+      console.error('API: Delete user error:', error.response?.data || error);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to delete user'
+      };
+    }
+  },
+
+  // Assign manager to employee - NEW METHOD
+  assignManagerEmployee: async (assignData) => {
+    try {
+      console.log('API: Assigning manager to employee:', assignData);
+      const response = await api.post('/assign-manager/', assignData);
+      console.log('API: Assign manager response:', response.data);
+      
+      return { 
+        success: true, 
+        data: response.data.data || response.data 
+      };
+    } catch (error) {
+      console.error('API: Assign manager error:', error.response?.data || error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to assign manager to employee'
       };
     }
   }
 };
 
 export const approvalApi = {
-  // Get approval rules (placeholder - will be implemented later)
+  // Get approval rules - PLACEHOLDER METHOD
   getApprovalRules: async () => {
     try {
+      console.log('API: Getting approval rules (placeholder)...');
       // For now, return default rules since backend endpoint not yet implemented
       return { 
         success: true, 
@@ -311,14 +385,18 @@ export const approvalApi = {
             id: 1,
             type: 'sequential',
             name: 'Default Sequential Approval',
+            rule_type: 'sequential',
+            is_active: true,
+            is_manager_approver: true,
             levels: [
-              { level: 1, approverRole: 'manager', required: true }
+              { level: 1, approverRole: 'manager', required: true },
+              { level: 2, approverRole: 'admin', required: true }
             ]
           }
         ]
       };
     } catch (error) {
-      console.error('Get approval rules error:', error);
+      console.error('API: Get approval rules error:', error);
       return {
         success: false,
         error: 'Failed to fetch approval rules'
@@ -326,9 +404,29 @@ export const approvalApi = {
     }
   },
 
-  // Update approval rules (placeholder - will be implemented later)
+  // Create approval rule - PLACEHOLDER METHOD
+  createApprovalRule: async (ruleData) => {
+    try {
+      console.log('API: Creating approval rule (placeholder):', ruleData);
+      // Placeholder implementation - will be implemented when backend is ready
+      await new Promise(resolve => setTimeout(resolve, 400));
+      return { 
+        success: true, 
+        data: { id: Date.now(), ...ruleData, is_active: true }
+      };
+    } catch (error) {
+      console.error('API: Create approval rule error:', error);
+      return {
+        success: false,
+        error: 'Failed to create approval rule'
+      };
+    }
+  },
+
+  // Update approval rules - PLACEHOLDER METHOD
   updateApprovalRules: async (rules) => {
     try {
+      console.log('API: Updating approval rules (placeholder):', rules);
       // Placeholder implementation
       await new Promise(resolve => setTimeout(resolve, 400));
       return { 
@@ -336,7 +434,7 @@ export const approvalApi = {
         data: rules 
       };
     } catch (error) {
-      console.error('Update approval rules error:', error);
+      console.error('API: Update approval rules error:', error);
       return {
         success: false,
         error: 'Failed to update approval rules'
@@ -347,6 +445,8 @@ export const approvalApi = {
 
 // Utility function to handle API errors consistently
 export const handleApiError = (error) => {
+  console.error('API Error:', error);
+  
   if (error.response) {
     // Server responded with error status
     const status = error.response.status;

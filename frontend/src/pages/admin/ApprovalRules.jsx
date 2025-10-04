@@ -1,88 +1,133 @@
+import { useState, useEffect } from 'react';
 import { Layout } from '../../components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { Settings, CheckCircle } from 'lucide-react';
+import { Settings, CheckCircle, Users, Percent, User, Zap } from 'lucide-react';
 
 export const ApprovalRules = () => {
+  const [loading, setLoading] = useState(false);
+
+  // Mock data since backend endpoint doesn't exist yet
+  const currentRules = [
+    {
+      id: 1,
+      name: 'Default Sequential Flow',
+      rule_type: 'sequential',
+      is_active: true,
+      is_manager_approver: true,
+      description: 'Manager → Admin approval sequence'
+    }
+  ];
+
   return (
     <Layout>
-      <div 
-        style={{ 
-          marginLeft: '256px', 
-          padding: '24px', 
-          minHeight: '100vh',
-          backgroundColor: 'var(--background)' 
-        }}
-      >
-        <div className="max-w-4xl">
-          <h1 className="text-3xl font-bold mb-2">Approval Rules</h1>
-          <p className="text-muted-foreground mb-6">Configure expense approval workflows</p>
+      <div style={{ 
+        marginLeft: '256px', 
+        padding: '24px', 
+        minHeight: '100vh',
+        backgroundColor: 'var(--background)' 
+      }}>
+        <div className="max-w-6xl">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Approval Rules</h1>
+              <p className="text-muted-foreground">Configure multi-level expense approval workflows</p>
+            </div>
+          </div>
 
+          {/* Current Rules */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-success" />
-                  Current Configuration
+                  Active Approval Rules ({currentRules.filter(r => r.is_active).length})
                 </CardTitle>
                 <CardDescription>
-                  Active approval workflow for expense submissions
+                  Currently configured approval workflows
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-accent/50 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">Sequential Approval</h3>
-                    <Badge>Active</Badge>
+                {currentRules.map((rule) => (
+                  <div key={rule.id} className="p-4 bg-accent/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Users className="w-4 h-4" />
+                        <h3 className="font-semibold">{rule.name}</h3>
+                        <Badge variant={rule.is_active ? 'success' : 'secondary'}>
+                          {rule.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Level 1:</strong> Manager Approval (Required)</p>
+                      <p><strong>Level 2:</strong> Admin Approval (Required)</p>
+                      <p className="text-muted-foreground">
+                        {rule.description}
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Level 1:</strong> Manager Approval (Required)</p>
-                    <p className="text-muted-foreground">
-                      All expenses must be approved by the employee's direct manager
-                    </p>
-                  </div>
-                </div>
+                ))}
               </CardContent>
             </Card>
 
+            {/* Approval Flow Examples */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5 text-primary" />
-                  Available Rule Types
+                  Approval Flow Examples
                 </CardTitle>
                 <CardDescription>
-                  Different approval workflows you can configure (Django integration required)
+                  Common approval workflow patterns you can implement
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Sequential Flow</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Expenses move through approval levels one by one. Each approver must approve before
-                    moving to the next level.
-                  </p>
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Multi-Level Sequential
+                    </h3>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Step 1 → Manager</p>
+                      <p>Step 2 → Admin</p>
+                      <p>Step 3 → Finance</p>
+                    </div>
+                  </div>
 
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Percentage Rule</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Requires a certain percentage of approvers to approve (e.g., 60% approval required)
-                  </p>
-                </div>
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Percent className="w-4 h-4" />
+                      Percentage Based
+                    </h3>
+                    <div className="text-sm text-muted-foreground">
+                      <p>60% of assigned approvers</p>
+                      <p>must approve for completion</p>
+                    </div>
+                  </div>
 
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Specific Approver Rule</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Certain approvers (e.g., CFO) can auto-approve expenses regardless of other approvals
-                  </p>
-                </div>
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      CFO Override
+                    </h3>
+                    <div className="text-sm text-muted-foreground">
+                      <p>CFO approval instantly</p>
+                      <p>approves any expense</p>
+                    </div>
+                  </div>
 
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Hybrid Rules</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Combine multiple conditions (e.g., 60% approval OR CFO approval)
-                  </p>
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      Hybrid Rules
+                    </h3>
+                    <div className="text-sm text-muted-foreground">
+                      <p>60% approval OR</p>
+                      <p>CFO approval</p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -93,8 +138,8 @@ export const ApprovalRules = () => {
                   <Settings className="w-12 h-12 mx-auto mb-3 text-primary" />
                   <h3 className="font-semibold mb-2">Advanced Configuration</h3>
                   <p className="text-sm text-muted-foreground">
-                    Connect to your Django backend to enable custom approval rule configuration
-                    and dynamic workflow management.
+                    Backend integration in progress. Advanced approval rule configuration
+                    will be available soon with custom workflow management.
                   </p>
                 </div>
               </CardContent>

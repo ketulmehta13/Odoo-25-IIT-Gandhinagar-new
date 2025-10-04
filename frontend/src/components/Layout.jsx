@@ -13,16 +13,13 @@ export const Layout = ({ children }) => {
     navigate('/login');
   };
 
-  // Helper function to get user's full name
   const getUserDisplayName = () => {
     if (!user) return 'Unknown User';
     
-    // Try to construct full name from first_name and last_name
     const firstName = user.first_name || '';
     const lastName = user.last_name || '';
     const fullName = `${firstName} ${lastName}`.trim();
     
-    // Fallback to username or email if no full name
     return fullName || user.username || user.email || 'User';
   };
 
@@ -38,10 +35,10 @@ export const Layout = ({ children }) => {
       );
     } else if (user?.role === 'manager') {
       baseItems.push(
-        { icon: CheckSquare, label: 'Approvals', path: '/manager' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/manager' },
         { icon: Receipt, label: 'Team Expenses', path: '/manager/team' }
       );
-    } else {
+    } else if (user?.role === 'employee') {
       baseItems.push(
         { icon: Receipt, label: 'New Expense', path: '/employee' },
         { icon: LayoutDashboard, label: 'My Expenses', path: '/employee/history' }
@@ -51,32 +48,33 @@ export const Layout = ({ children }) => {
     return baseItems;
   };
 
-  // Improved active link detection
   const isActiveLink = (path) => {
-    // Exact match for dashboard routes
     if (path === '/admin' || path === '/manager' || path === '/employee') {
       return location.pathname === path;
     }
-    
-    // For sub-routes, check if current path starts with the nav path
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border">
+      {/* Fixed Sidebar */}
+      <aside 
+        className="fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border z-50"
+        style={{ 
+          width: '256px',
+          minWidth: '256px',
+          maxWidth: '256px'
+        }}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
             <h1 className="text-xl font-bold text-sidebar-foreground">ExpenseFlow</h1>
-            <p className="text-sm text-sidebar-foreground/60 mt-1">
-              {user?.role?.toUpperCase() || 'USER'}
-            </p>
+            <p className="text-sm text-sidebar-foreground/60 mt-1">{user?.role?.toUpperCase()}</p>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {getNavItems().map((item) => {
               const Icon = item.icon;
               const isActive = isActiveLink(item.path);
@@ -84,21 +82,59 @@ export const Layout = ({ children }) => {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
-                  }`}
+                  className={`sidebar-nav-button ${isActive ? 'active' : ''}`}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    gap: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.5rem',
+                    transition: 'all 200ms ease-in-out',
+                    textAlign: 'left',
+                    whiteSpace: 'nowrap',
+                    overflow: 'visible',
+                    border: 'none',
+                    fontWeight: isActive ? '600' : '500',
+                    backgroundColor: isActive 
+                      ? 'hsl(217, 33%, 25%)' // Darker background for active state
+                      : 'transparent',
+                    color: isActive 
+                      ? 'hsl(210, 40%, 98%)' // Bright text for active state
+                      : 'hsl(210, 40%, 98%)',
+                    boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.2)' : 'none'
+                  }}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
+                  <Icon 
+                    className="sidebar-icon" 
+                    style={{
+                      flexShrink: 0,
+                      width: '1.25rem',
+                      height: '1.25rem',
+                      opacity: 1
+                    }}
+                  />
+                  <span 
+                    className="sidebar-nav-text"
+                    style={{
+                      display: 'block',
+                      overflow: 'visible',
+                      textOverflow: 'clip',
+                      whiteSpace: 'nowrap',
+                      opacity: 1,
+                      fontWeight: 'inherit'
+                    }}
+                  >
+                    {item.label}
+                  </span>
                 </button>
               );
             })}
           </nav>
 
           {/* User Info & Logout */}
-          <div className="p-4 border-t border-sidebar-border">
+          <div className="p-4 border-t border-sidebar-border bg-sidebar">
             <div className="mb-3 px-2">
               <p className="text-sm font-medium text-sidebar-foreground">
                 {getUserDisplayName()}
@@ -111,16 +147,31 @@ export const Layout = ({ children }) => {
               variant="ghost"
               className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
               onClick={handleLogout}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                fontWeight: '500'
+              }}
             >
-              <LogOut className="w-5 h-5 mr-3" />
-              Logout
+              <LogOut 
+                className="flex-shrink-0" 
+                style={{
+                  width: '1.25rem',
+                  height: '1.25rem'
+                }}
+              />
+              <span>Logout</span>
             </Button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
+      <main style={{ marginLeft: '256px', minHeight: '100vh' }}>
         {children}
       </main>
     </div>

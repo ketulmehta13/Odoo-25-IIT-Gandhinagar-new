@@ -2,9 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@layer components {
+  /* Enhanced sidebar button styling with better contrast */
+  .sidebar-nav-button {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: 0.5rem !important;
+    transition: all 200ms ease-in-out !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    border: none !important;
+    font-weight: 500 !important;
+  }
+
+  /* Active/Selected button state with high contrast */
+  .sidebar-nav-button.active {
+    background-color: hsl(var(--sidebar-accent)) !important;
+    color: hsl(var(--sidebar-accent-foreground)) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* Hover state for better interaction feedback */
+  .sidebar-nav-button:hover:not(.active) {
+    background-color: hsla(var(--sidebar-accent), 0.5) !important;
+    color: hsl(var(--sidebar-foreground)) !important;
+  }
+
+  /* Default button state */
+  .sidebar-nav-button:not(.active) {
+    background-color: transparent !important;
+    color: hsl(var(--sidebar-foreground)) !important;
+  }
+
+  /* Icon styling for better visibility */
+  .sidebar-icon {
+    flex-shrink: 0 !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    opacity: 1 !important;
+  }
+
+  /* Text styling for better visibility */
+  .sidebar-nav-text {
+    display: block !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    opacity: 1 !important;
+    font-weight: inherit !important;
+  }
+}
+
+/* Override any conflicting styles that might make buttons light */
+.sidebar-nav-button * {
+  opacity: 1 !important;
+}
+
+/* Ensure proper sidebar colors */
+:root {
+  --sidebar-accent: 217 33% 25% !important; /* Darker for better contrast */
+  --sidebar-accent-foreground: 210 40% 98% !important; /* Bright text */
+}
 
 @layer base {
   :root {

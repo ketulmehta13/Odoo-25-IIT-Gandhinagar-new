@@ -3,8 +3,8 @@ import { Layout } from '../../components/Layout';
 import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { expenseApi } from '../../services/expenseApi'; // Updated import
-import { Calendar, DollarSign, FileText } from 'lucide-react';
+import { expenseApi } from '../../services/expenseApi';
+import { Calendar, DollarSign, FileText, Clock, CheckCircle } from 'lucide-react';
 
 export const AllExpenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -17,15 +17,16 @@ export const AllExpenses = () => {
 
   const loadExpenses = async () => {
     try {
+      console.log('Loading expenses with filter:', statusFilter);
       const filters = statusFilter !== 'all' ? { status: statusFilter } : {};
       const result = await expenseApi.getAllExpenses(filters);
       
-      console.log('API Result:', result); // Debug log
+      console.log('API Result:', result);
       
       if (result.success) {
-        // Ensure we have an array
         const expenseData = Array.isArray(result.data) ? result.data : [];
         setExpenses(expenseData);
+        console.log('Loaded expenses:', expenseData.length);
       } else {
         console.error('API Error:', result.error);
         setExpenses([]);
@@ -49,6 +50,15 @@ export const AllExpenses = () => {
     return <Badge variant={variants[status] || 'secondary'}>{status?.toUpperCase()}</Badge>;
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No Date';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -69,21 +79,35 @@ export const AllExpenses = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold mb-2">All Expenses</h1>
-              <p className="text-muted-foreground">System-wide expense overview</p>
+              <p className="text-muted-foreground">System-wide expense overview and management</p>
             </div>
-            <div className="w-48">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending_approval">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                </SelectContent>
-              </Select>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-warning" />
+                  <span>{expenses.filter(e => e.status === 'pending_approval').length} Pending</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-success" />
+                  <span>{expenses.filter(e => e.status === 'approved').length} Approved</span>
+                </div>
+              </div>
+              
+              <div className="w-48">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -92,6 +116,9 @@ export const AllExpenses = () => {
               <CardContent className="py-12 text-center">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">No expenses found</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {statusFilter !== 'all' ? `No expenses with status: ${statusFilter}` : 'No expenses have been submitted yet'}
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -103,12 +130,17 @@ export const AllExpenses = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-semibold">
-                            {expense.employee_name || expense.employeeName || 'Unknown Employee'}
+                            {expense.employee_name || expense.employee_details?.full_name || 'Unknown Employee'}
                           </h3>
                           {getStatusBadge(expense.status)}
                           <Badge variant="outline">
                             {expense.category_details?.name || expense.category || 'No Category'}
                           </Badge>
+                          {expense.current_step && (
+                            <Badge variant="secondary" className="text-xs">
+                              Step {expense.current_step}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-muted-foreground mb-3">{expense.description}</p>
                         
@@ -118,17 +150,17 @@ export const AllExpenses = () => {
                             <span>{expense.amount} {expense.currency}</span>
                             {expense.currency !== (expense.company_currency || 'USD') && (
                               <span className="ml-2 text-xs text-muted-foreground">
-                                ≈ {expense.converted_amount || expense.convertedAmount} {expense.company_currency || 'USD'}
+                                ≈ {expense.converted_amount} {expense.company_currency || 'USD'}
                               </span>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-primary" />
-                            <span>{new Date(expense.expense_date || expense.date).toLocaleDateString()}</span>
+                            <span>{formatDate(expense.expense_date || expense.date)}</span>
                           </div>
                         </div>
 
-                        {/* Approval Trail - with safe checking */}
+                        {/* Approval Trail */}
                         {expense.approvals && expense.approvals.length > 0 && (
                           <div className="mt-4 pt-4 border-t">
                             <p className="text-sm font-medium mb-2">Approval Trail</p>
@@ -136,14 +168,17 @@ export const AllExpenses = () => {
                               {expense.approvals.map((approval, idx) => (
                                 <div key={idx} className="flex items-center gap-3 text-sm">
                                   <div className={`w-2 h-2 rounded-full ${
-                                    approval.status === 'approved' ? 'bg-success' : 
-                                    approval.status === 'rejected' ? 'bg-destructive' : 'bg-warning'
+                                    approval.status === 'approved' ? 'bg-green-500' : 
+                                    approval.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500'
                                   }`} />
-                                  <span>{approval.approver_details?.full_name || approval.name || 'Unknown'}</span>
-                                  <span className="text-muted-foreground">
-                                    {approval.approver_details?.role || approval.role || ''}
+                                  <span className="text-xs font-medium px-2 py-1 bg-primary/10 rounded">
+                                    Step {approval.step_order}
                                   </span>
-                                  <Badge variant="outline" className="text-xs">{approval.status}</Badge>
+                                  <span>{approval.approver_details?.full_name || 'Unknown Approver'}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {approval.approver_details?.role?.toUpperCase() || approval.approver_type?.toUpperCase()}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">{approval.status?.toUpperCase()}</Badge>
                                   {approval.comments && (
                                     <span className="text-xs italic text-muted-foreground">
                                       "{approval.comments}"
@@ -155,15 +190,17 @@ export const AllExpenses = () => {
                           </div>
                         )}
 
-                        {/* Show current approver if pending */}
+                        {/* Current Pending Approver */}
                         {expense.status === 'pending_approval' && expense.current_approver_details && (
                           <div className="mt-4 pt-4 border-t">
-                            <p className="text-sm font-medium mb-2">Pending Approval</p>
-                            <div className="flex items-center gap-3 text-sm">
-                              <div className="w-2 h-2 rounded-full bg-warning" />
-                              <span>{expense.current_approver_details.full_name}</span>
-                              <span className="text-muted-foreground">({expense.current_approver_details.role})</span>
-                              <Badge variant="outline" className="text-xs">Pending</Badge>
+                            <p className="text-sm font-medium mb-2">Currently Awaiting Approval</p>
+                            <div className="flex items-center gap-3 text-sm p-3 bg-warning/10 rounded-lg border border-warning/20">
+                              <div className="w-3 h-3 rounded-full bg-warning animate-pulse" />
+                              <span className="font-medium">{expense.current_approver_details.full_name}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {expense.current_approver_details.role?.toUpperCase()}
+                              </Badge>
+                              <Badge variant="warning" className="text-xs">PENDING</Badge>
                             </div>
                           </div>
                         )}

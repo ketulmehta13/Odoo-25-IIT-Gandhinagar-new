@@ -28,6 +28,35 @@ class ExpenseApprovalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpenseApproval
         fields = '__all__'
+# Add this to api/serializers.py
+
+class ApprovalRuleSerializer(serializers.ModelSerializer):
+    specific_approver_details = UserBasicSerializer(source='specific_approver', read_only=True)
+    
+    class Meta:
+        model = ApprovalRule
+        fields = '__all__'
+
+
+class ApprovalFlowSerializer(serializers.ModelSerializer):
+    steps = serializers.SerializerMethodField()
+    rule_details = ApprovalRuleSerializer(source='rule', read_only=True)
+    
+    class Meta:
+        model = ApprovalFlow
+        fields = '__all__'
+    
+    def get_steps(self, obj):
+        steps = ApprovalStep.objects.filter(approval_flow=obj).order_by('step_order')
+        return ApprovalStepSerializer(steps, many=True).data
+
+
+class ApprovalStepSerializer(serializers.ModelSerializer):
+    specific_approver_details = UserBasicSerializer(source='specific_approver', read_only=True)
+    
+    class Meta:
+        model = ApprovalStep
+        fields = '__all__'
 
 # In api/serializers.py
 class ExpenseSerializer(serializers.ModelSerializer):

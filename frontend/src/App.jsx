@@ -17,6 +17,7 @@ import ApprovalRules from "./pages/admin/ApprovalRules";
 import AllExpenses from "./pages/admin/AllExpenses";
 import NotFound from "./pages/NotFound";
 
+
 const queryClient = new QueryClient();
 
 const RoleBasedRedirect = () => {
