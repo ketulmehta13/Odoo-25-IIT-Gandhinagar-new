@@ -13,6 +13,19 @@ export const Layout = ({ children }) => {
     navigate('/login');
   };
 
+  // Helper function to get user's full name
+  const getUserDisplayName = () => {
+    if (!user) return 'Unknown User';
+    
+    // Try to construct full name from first_name and last_name
+    const firstName = user.first_name || '';
+    const lastName = user.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    
+    // Fallback to username or email if no full name
+    return fullName || user.username || user.email || 'User';
+  };
+
   const getNavItems = () => {
     const baseItems = [];
     
@@ -57,7 +70,9 @@ export const Layout = ({ children }) => {
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
             <h1 className="text-xl font-bold text-sidebar-foreground">ExpenseFlow</h1>
-            <p className="text-sm text-sidebar-foreground/60 mt-1">{user?.role?.toUpperCase()}</p>
+            <p className="text-sm text-sidebar-foreground/60 mt-1">
+              {user?.role?.toUpperCase() || 'USER'}
+            </p>
           </div>
 
           {/* Navigation */}
@@ -85,8 +100,12 @@ export const Layout = ({ children }) => {
           {/* User Info & Logout */}
           <div className="p-4 border-t border-sidebar-border">
             <div className="mb-3 px-2">
-              <p className="text-sm font-medium text-sidebar-foreground">{user?.name}</p>
-              <p className="text-xs text-sidebar-foreground/60">{user?.email}</p>
+              <p className="text-sm font-medium text-sidebar-foreground">
+                {getUserDisplayName()}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60">
+                {user?.email || 'No email'}
+              </p>
             </div>
             <Button
               variant="ghost"

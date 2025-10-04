@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '../../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { expenseApi } from '../../services/mockApi';
+import { expenseApi } from '../../services/expenseApi';
 import { DollarSign, Users, TrendingUp, Clock } from 'lucide-react';
 
 export const AdminDashboard = () => {
